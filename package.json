@@ -1,0 +1,15 @@
+{
+  "name": "chip8-studio",
+  "version": "1.0.0",
+  "description": "CHIP-8 / SUPER-CHIP emulator with a visual debugger and a built-in assembler, running in the browser.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "author": "Jimmy Kurc",
+  "scripts": {
+    "test": "node --test",
+    "build:roms": "node tools/build-roms.js",
+    "start": "python3 -m http.server 8000"
+  },
+  "engines": { "node": ">=20" }
+}
