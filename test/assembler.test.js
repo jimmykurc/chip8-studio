@@ -122,13 +122,16 @@ test('shipped ROMs run for 10 seconds without errors under every preset', () => 
     for (const [name, quirks] of Object.entries(QUIRK_PRESETS)) {
       const c = new Chip8({ quirks });
       c.loadRom(readFileSync(new URL(file, dir)));
+      let drew = false;
       for (let f = 0; f < 600; f++) {
         if (f === 10) c.keyDown(5);
         if (f === 12) c.keyUp(5);
         c.runFrame(40);
         c.tickTimers();
+        drew ||= c.screen.some((p) => p);
       }
-      assert.ok(c.screen.some((p) => p), `${file} (${name}) drew something`);
+      assert.ok(drew, `${file} (${name}) drew something`);
+      assert.equal(c.halted, false);
     }
   }
 });

@@ -264,6 +264,8 @@ function assembleAndRun(name) {
   state.sourceClean = true;
   state.lastBuild = result.bytes;
   const title = typeof name === 'string' ? name : 'Editor program';
+  $('rom-select').value = '';
+  history.replaceState(null, '', location.pathname);
   loadBytes(result.bytes, { name: title, lineOf: result.lineOf, labels: result.labels });
 }
 

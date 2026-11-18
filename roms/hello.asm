@@ -33,6 +33,13 @@ loop:
   SKNP V5
   ADD V1, 1             ; y + 1
 
+  SE V0, V3             ; redraw only if we moved
+  JP moved
+  SE V1, V4
+  JP moved
+  JP loop
+
+moved:
   LD I, smiley
   DRW V3, V4, 8         ; XOR erases the old one...
   DRW V0, V1, 8         ; ...and draws the new one

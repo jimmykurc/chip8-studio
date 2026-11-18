@@ -6,7 +6,7 @@
 //   Numbers: 42, #2A, 0x2A, $2A, 0b101010, %101010, 'A'
 //   Expressions: terms joined by + and -, e.g. `sprites + 5`, `end - start`.
 //
-// assemble(source) -> { ok, bytes, errors, symbols, lineOf, addrOf }
+// assemble(source) -> { ok, bytes, errors, symbols, labels, lineOf, addrOf }
 
 import { PROGRAM_START, MEMORY_SIZE } from './chip8.js';
 
@@ -184,6 +184,7 @@ function encode(mnemonic, ops, symbols, line) {
 export function assemble(source, { origin = PROGRAM_START } = {}) {
   const errors = [];
   const symbols = new Map();
+  const labels = new Map(); // address -> first label name defined there
   const items = []; // { line, addr, kind, ... }
   let addr = origin;
 
@@ -197,6 +198,7 @@ export function assemble(source, { origin = PROGRAM_START } = {}) {
       let m;
       while ((m = /^([A-Za-z_][\w.]*)\s*:/.exec(text))) {
         define(m[1], addr, line);
+        labels.set(addr, labels.get(addr) ?? m[1]);
         text = text.slice(m[0].length).trim();
       }
       if (!text) return;
@@ -281,5 +283,5 @@ export function assemble(source, { origin = PROGRAM_START } = {}) {
   }
 
   errors.sort((a, b) => a.line - b.line);
-  return { ok: errors.length === 0, bytes, errors, symbols, lineOf, addrOf };
+  return { ok: errors.length === 0, bytes, errors, symbols, labels, lineOf, addrOf };
 }
