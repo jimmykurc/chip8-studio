@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHIP-8 Studio</title>
+  <meta name="description" content="A CHIP-8 / SUPER-CHIP emulator with a visual debugger and a built-in assembler. Write a program and run it right in your browser.">
+  <meta name="theme-color" content="#07090c">
+  <meta property="og:title" content="CHIP-8 Studio">
+  <meta property="og:description" content="CHIP-8 / SUPER-CHIP emulator, visual debugger and assembler in the browser.">
+  <meta property="og:image" content="docs/screenshot.png">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%2307090c'/%3E%3Cpath fill='%233dff8b' d='M3 4h4v2H5v4h2v2H3zm6 0h4v8H9zm2 2v1h0V6zm0 3v1h0V9z'/%3E%3Crect x='10' y='5' width='2' height='2' fill='%2307090c'/%3E%3Crect x='10' y='9' width='2' height='2' fill='%2307090c'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Press+Start+2P&display=swap">
+  <link rel="stylesheet" href="css/studio.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="CHIP-8 Studio home">
+      <span class="brand-chip">C8</span>
+      <span class="brand-name">CHIP-8 <em>STUDIO</em></span>
+    </a>
+    <div class="toolbar">
+      <label class="field">ROM
+        <select id="rom-select" aria-label="Built-in ROM"></select>
+      </label>
+      <button type="button" id="open-file" class="btn">Open file…</button>
+      <input type="file" id="file-input" hidden accept=".ch8,.c8,.sc8,.rom,.bin,.asm,.8o,.txt">
+      <label class="field">Palette
+        <select id="theme" aria-label="Display palette"></select>
+      </label>
+      <a class="btn ghost" href="https://github.com/jimmykurc/chip8-studio" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ======================= emulator ======================= -->
+    <section class="panel stage" aria-label="Emulator">
+      <div class="bezel">
+        <div class="screen" id="screen-wrap">
+          <canvas id="screen" width="64" height="32" aria-label="CHIP-8 display"></canvas>
+          <div class="scan" aria-hidden="true"></div>
+          <div class="drop-hint" aria-hidden="true">Drop a .ch8 ROM or an .asm source</div>
+        </div>
+        <div class="bezel-label"><span class="led" aria-hidden="true"></span><span id="mode">64x32</span><span class="sep">·</span><span id="cycles">0</span> cycles</div>
+      </div>
+
+      <div class="statusbar">
+        <span id="status" role="status">Booting…</span>
+        <span id="rom-info"></span>
+      </div>
+
+      <div class="controls" role="toolbar" aria-label="Run controls">
+        <button type="button" id="run" class="btn primary" title="Run / pause (P)">Run</button>
+        <button type="button" id="step" class="btn" title="Execute one instruction (N)">Step</button>
+        <button type="button" id="step-frame" class="btn" title="Run one 60 Hz frame (M)">Frame</button>
+        <button type="button" id="reset" class="btn" title="Restart the ROM">Reset</button>
+        <button type="button" id="mute" class="btn active" aria-pressed="true" title="Toggle the beeper">Sound on</button>
+        <label class="speed">Speed
+          <input type="range" id="speed" min="1" max="200" value="30" aria-describedby="speed-out">
+          <output id="speed-out">30 / frame</output>
+        </label>
+      </div>
+
+      <p class="rom-about" id="rom-about"></p>
+
+      <div class="stage-bottom">
+        <div class="keypad-wrap">
+          <div class="keypad" id="keypad" aria-label="Hex keypad"></div>
+          <p class="hint">Keyboard: <kbd>1</kbd>–<kbd>4</kbd> <kbd>Q</kbd>–<kbd>R</kbd> <kbd>A</kbd>–<kbd>F</kbd> <kbd>Z</kbd>–<kbd>V</kbd> (physical positions), arrows = 2/4/6/8, space = 5.
+            Shortcuts: <kbd>P</kbd> run/pause, <kbd>N</kbd> step, <kbd>M</kbd> frame.</p>
+        </div>
+
+        <div class="settings">
+          <h3>Quirks</h3>
+          <label class="field block">Preset <select id="preset" aria-label="Quirk preset"></select></label>
+          <label class="check" title="8XY6 / 8XYE shift VX in place instead of copying VY"><input type="checkbox" id="q-shift"> Shift VX in place</label>
+          <label class="check" title="FX55 / FX65 increment I"><input type="checkbox" id="q-loadStore"> Load/store moves I</label>
+          <label class="check" title="BNNN jumps to XNN + VX"><input type="checkbox" id="q-jump"> Jump uses VX</label>
+          <label class="check" title="DXYN waits for the 60 Hz display refresh"><input type="checkbox" id="q-vblank"> Wait for vblank</label>
+          <label class="check" title="8XY1 / 8XY2 / 8XY3 reset VF"><input type="checkbox" id="q-vfReset"> Logic resets VF</label>
+          <label class="check" title="Sprites are clipped at the screen edge instead of wrapping"><input type="checkbox" id="q-clip"> Clip sprites</label>
+          <h3>Display</h3>
+          <label class="check"><input type="checkbox" id="persistence" checked> Phosphor persistence</label>
+          <label class="check"><input type="checkbox" id="scanlines" checked> Scanlines</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ======================= debugger ======================= -->
+    <section class="panel debugger" aria-label="Debugger">
+      <div class="panel-head">
+        <h2>Debugger</h2>
+        <button type="button" id="clear-bp" class="btn small ghost">Clear breakpoints</button>
+      </div>
+      <div class="regs" id="regs"></div>
+      <div class="dbg-grid">
+        <div>
+          <h3>Disassembly <small>click a line to set a breakpoint</small></h3>
+          <div class="disasm" id="disasm"></div>
+        </div>
+        <div class="side">
+          <h3>Stack</h3>
+          <div class="stack" id="stack"></div>
+          <h3>Sprite @ <span id="sprite-addr">000</span></h3>
+          <canvas id="sprite" class="sprite" width="96" height="192" aria-label="Sprite preview of the 16 bytes at I"></canvas>
+        </div>
+      </div>
+      <div class="panel-head mem-head">
+        <h3>Memory</h3>
+        <div class="mem-tools">
+          <label class="field">Follow
+            <select id="mem-follow">
+              <option value="pc">PC</option>
+              <option value="i">I</option>
+              <option value="none">None</option>
+            </select>
+          </label>
+          <label class="field">Go to <input id="mem-goto" placeholder="200" size="4" maxlength="4" spellcheck="false"></label>
+        </div>
+      </div>
+      <div class="memory" id="memory"></div>
+    </section>
+
+    <!-- ======================= assembler ======================= -->
+    <section class="panel editor" aria-label="Assembler">
+      <div class="panel-head">
+        <h2>Assembler</h2>
+        <div class="editor-tools">
+          <select id="example-select" aria-label="Load an example"></select>
+          <button type="button" id="assemble" class="btn primary" title="Ctrl+Enter">Assemble &amp; run</button>
+          <button type="button" id="download" class="btn">Download .ch8</button>
+        </div>
+      </div>
+      <div class="code">
+        <div class="gutter-wrap"><pre class="gutter" id="gutter" aria-hidden="true"></pre></div>
+        <div class="code-area">
+          <pre class="highlight" id="highlight" aria-hidden="true"></pre>
+          <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Assembly source"></textarea>
+        </div>
+      </div>
+      <div class="asm-output" id="asm-output">Write CHIP-8 assembly here, then press <b>Assemble &amp; run</b>.</div>
+
+      <details class="reference">
+        <summary>Instruction reference</summary>
+        <div class="ref-grid">
+          <table>
+            <tr><th>Syntax</th><th>Opcode</th><th>Effect</th></tr>
+            <tr><td>CLS</td><td>00E0</td><td>Clear screen</td></tr>
+            <tr><td>RET</td><td>00EE</td><td>Return from subroutine</td></tr>
+            <tr><td>JP addr</td><td>1NNN</td><td>Jump</td></tr>
+            <tr><td>CALL addr</td><td>2NNN</td><td>Call subroutine</td></tr>
+            <tr><td>SE Vx, n | Vy</td><td>3XNN 5XY0</td><td>Skip if equal</td></tr>
+            <tr><td>SNE Vx, n | Vy</td><td>4XNN 9XY0</td><td>Skip if not equal</td></tr>
+            <tr><td>LD Vx, n | Vy</td><td>6XNN 8XY0</td><td>Load</td></tr>
+            <tr><td>ADD Vx, n</td><td>7XNN</td><td>Add (no carry)</td></tr>
+            <tr><td>OR / AND / XOR Vx, Vy</td><td>8XY1-3</td><td>Bitwise</td></tr>
+            <tr><td>ADD / SUB / SUBN Vx, Vy</td><td>8XY4 5 7</td><td>Arithmetic, VF = carry / no borrow</td></tr>
+            <tr><td>SHR / SHL Vx [, Vy]</td><td>8XY6 8XYE</td><td>Shift, VF = bit out</td></tr>
+            <tr><td>LD I, addr</td><td>ANNN</td><td>Set I</td></tr>
+            <tr><td>JP V0, addr</td><td>BNNN</td><td>Jump to addr + V0</td></tr>
+            <tr><td>RND Vx, mask</td><td>CXNN</td><td>Random &amp; mask</td></tr>
+          </table>
+          <table>
+            <tr><th>Syntax</th><th>Opcode</th><th>Effect</th></tr>
+            <tr><td>DRW Vx, Vy, n</td><td>DXYN</td><td>XOR sprite at I, VF = collision (n=0: 16x16)</td></tr>
+            <tr><td>SKP / SKNP Vx</td><td>EX9E EXA1</td><td>Skip if key (not) held</td></tr>
+            <tr><td>LD Vx, DT | K</td><td>FX07 FX0A</td><td>Read delay timer / wait key</td></tr>
+            <tr><td>LD DT | ST, Vx</td><td>FX15 FX18</td><td>Set delay / sound timer</td></tr>
+            <tr><td>ADD I, Vx</td><td>FX1E</td><td>I += Vx</td></tr>
+            <tr><td>LD F | HF, Vx</td><td>FX29 FX30</td><td>I = small / big font digit</td></tr>
+            <tr><td>LD B, Vx</td><td>FX33</td><td>BCD of Vx at I</td></tr>
+            <tr><td>LD [I], Vx / LD Vx, [I]</td><td>FX55 FX65</td><td>Store / load V0..Vx</td></tr>
+            <tr><td>LD R, Vx / LD Vx, R</td><td>FX75 FX85</td><td>Save / load flags</td></tr>
+            <tr><td>HIGH / LOW</td><td>00FF 00FE</td><td>128x64 / 64x32 mode</td></tr>
+            <tr><td>SCD n / SCR / SCL</td><td>00CN FB FC</td><td>Scroll down n / right 4 / left 4</td></tr>
+            <tr><td>EXIT</td><td>00FD</td><td>Stop</td></tr>
+            <tr><td colspan="3">Directives: <code>label:</code> <code>NAME = expr</code> <code>DB</code> <code>DW</code> <code>ORG</code> · numbers <code>42 #2A 0x2A 0b101</code> · <code>; comment</code></td></tr>
+          </table>
+        </div>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>CHIP-8 Studio · MIT © Jimmy Kurc</span>
+    <span>All bundled ROMs are original and MIT licensed. <a href="https://github.com/jimmykurc/chip8-studio">Source on GitHub</a></span>
+  </footer>
+</body>
+</html>
